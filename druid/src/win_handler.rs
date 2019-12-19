@@ -16,7 +16,7 @@
 
 use std::any::Any;
 use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -35,7 +35,7 @@ use crate::theme;
 use crate::window::Window;
 use crate::{
     Command, Data, Env, Event, EventCtx, KeyEvent, KeyModifiers, LayoutCtx, LifeCycle, MenuDesc,
-    PaintCtx, TimerToken, UpdateCtx, WheelEvent, WindowDesc, WindowId,
+    PaintCtx, Target, TimerToken, UpdateCtx, WheelEvent, WindowDesc, WindowId,
 };
 
 use crate::command::sys as sys_cmd;
@@ -56,7 +56,7 @@ pub struct DruidHandler<T: Data> {
 /// State shared by all windows in the UI.
 pub(crate) struct AppState<T: Data> {
     delegate: Option<Box<dyn AppDelegate<T>>>,
-    command_queue: VecDeque<(WindowId, Command)>,
+    command_queue: VecDeque<(Target, Command)>,
     windows: Windows<T>,
     pub(crate) env: Env,
     pub(crate) data: T,
@@ -79,7 +79,7 @@ struct SingleWindowState<'a, T: Data> {
     window_id: WindowId,
     window: &'a mut Window<T>,
     state: &'a mut WindowState,
-    command_queue: &'a mut VecDeque<(WindowId, Command)>,
+    command_queue: &'a mut VecDeque<(Target, Command)>,
     data: &'a mut T,
     env: &'a Env,
 }
@@ -106,7 +106,7 @@ impl<T: Data> Windows<T> {
     fn get<'a>(
         &'a mut self,
         window_id: WindowId,
-        command_queue: &'a mut VecDeque<(WindowId, Command)>,
+        command_queue: &'a mut VecDeque<(Target, Command)>,
         data: &'a mut T,
         env: &'a Env,
     ) -> Option<SingleWindowState<'a, T>> {
@@ -400,10 +400,11 @@ impl<T: Data> AppState<T> {
 
     fn do_event(&mut self, source_id: WindowId, event: Event, win_ctx: &mut dyn WinCtx) -> bool {
         let event = self.delegate_event(source_id, event);
+        let mut inval_windows = HashSet::new();
 
-        let (is_handled, dirty, anim) = if let Some(event) = event {
+        let is_handled = if let Some(event) = event {
             // handle system window-level commands
-            if let Event::Command(ref cmd) = event {
+            if let Event::TargetedCommand(_target, ref cmd) = event {
                 match cmd.selector {
                     sys_cmd::SET_MENU => {
                         if let Some(mut win) = self.assemble_window_state(source_id) {
@@ -421,12 +422,44 @@ impl<T: Data> AppState<T> {
                 }
             }
 
-            self.assemble_window_state(source_id)
-                .map(|mut win| win.do_event_inner(event, win_ctx))
-                .unwrap_or((false, false, false))
+            match event {
+                Event::TargetedCommand(Target::Widget(_), _) => {
+                    let mut any_handled = false;
+                    // TODO: allocating this vector to make the borrow checker happy. It should
+                    // be possible to iterate the windows directly, but it's a bigger refactor.
+                    let ids: Vec<WindowId> = self.windows.windows.keys().cloned().collect();
+                    for id in ids {
+                        // TODO: this is using the WinCtx of the window originating the event,
+                        // rather than a WinCtx appropriate to the target window. This probably
+                        // needs to get rethought.
+                        let (handled, inval, request_anim) = self
+                            .assemble_window_state(id)
+                            .map(|mut win| win.do_event_inner(event.clone(), win_ctx))
+                            .unwrap_or((false, false, false));
+                        if inval || request_anim {
+                            inval_windows.insert(id);
+                        }
+                        any_handled |= handled;
+                        if handled {
+                            break;
+                        }
+                    }
+                    any_handled
+                }
+                _ => {
+                    let (handled, inval, request_anim) = self
+                        .assemble_window_state(source_id)
+                        .map(|mut win| win.do_event_inner(event, win_ctx))
+                        .unwrap_or((false, false, false));
+                    if inval || request_anim {
+                        inval_windows.insert(source_id);
+                    }
+                    handled
+                }
+            }
         } else {
             // if the event was swallowed by the delegate we consider it handled?
-            (true, false, false)
+            true
         };
 
         let AppState {
@@ -447,7 +480,7 @@ impl<T: Data> AppState<T> {
                     window_id: *id,
                 };
                 window.update(&mut update_ctx, data, env);
-                if update_ctx.needs_inval || (*id == source_id && (anim || dirty)) {
+                if update_ctx.needs_inval || inval_windows.contains(id) {
                     update_ctx.window.invalidate();
                 }
             }
@@ -494,7 +527,7 @@ impl<T: Data> DruidHandler<T> {
         loop {
             let next_cmd = self.app_state.borrow_mut().command_queue.pop_front();
             match next_cmd {
-                Some((id, cmd)) => self.handle_cmd(id, cmd, win_ctx),
+                Some((target, cmd)) => self.handle_cmd(target, cmd, win_ctx),
                 None => break,
             }
         }
@@ -507,7 +540,7 @@ impl<T: Data> DruidHandler<T> {
                 .app_state
                 .borrow_mut()
                 .command_queue
-                .push_back((self.window_id, cmd)),
+                .push_back((self.window_id.into(), cmd)),
             None => warn!("No command for menu id {}", cmd_id),
         }
         self.process_commands(win_ctx)
@@ -515,25 +548,34 @@ impl<T: Data> DruidHandler<T> {
 
     /// Handle a command. Top level commands (e.g. for creating and destroying windows)
     /// have their logic here; other commands are passed to the window.
-    fn handle_cmd(&mut self, window_id: WindowId, cmd: Command, win_ctx: &mut dyn WinCtx) {
+    fn handle_cmd(&mut self, target: Target, cmd: Command, win_ctx: &mut dyn WinCtx) {
         //FIXME: we need some way of getting the correct `WinCtx` for this window.
-        match &cmd.selector {
-            &sys_cmd::SHOW_OPEN_PANEL => self.show_open_panel(cmd, window_id, win_ctx),
-            &sys_cmd::SHOW_SAVE_PANEL => self.show_save_panel(cmd, window_id, win_ctx),
-            &sys_cmd::NEW_WINDOW => self.new_window(cmd),
-            &sys_cmd::CLOSE_WINDOW => self.request_close_window(cmd, window_id),
-            &sys_cmd::SHOW_WINDOW => self.show_window(cmd),
-            &sys_cmd::QUIT_APP => self.quit(),
-            &sys_cmd::HIDE_APPLICATION => self.hide_app(),
-            &sys_cmd::HIDE_OTHERS => self.hide_others(),
-            &sys_cmd::PASTE => self.do_paste(window_id, win_ctx),
-            sel => {
-                info!("handle_cmd {}", sel);
-                let event = Event::Command(cmd);
-                self.app_state
-                    .borrow_mut()
-                    .do_event(window_id, event, win_ctx);
+        if let Target::Window(window_id) = target {
+            match &cmd.selector {
+                &sys_cmd::SHOW_OPEN_PANEL => self.show_open_panel(cmd, window_id, win_ctx),
+                &sys_cmd::SHOW_SAVE_PANEL => self.show_save_panel(cmd, window_id, win_ctx),
+                &sys_cmd::NEW_WINDOW => self.new_window(cmd),
+                &sys_cmd::CLOSE_WINDOW => self.request_close_window(cmd, window_id),
+                &sys_cmd::SHOW_WINDOW => self.show_window(cmd),
+                &sys_cmd::QUIT_APP => self.quit(),
+                &sys_cmd::HIDE_APPLICATION => self.hide_app(),
+                &sys_cmd::HIDE_OTHERS => self.hide_others(),
+                &sys_cmd::PASTE => self.do_paste(window_id, win_ctx),
+                sel => {
+                    info!("handle_cmd {}", sel);
+                    let event = Event::TargetedCommand(target, cmd);
+                    self.app_state
+                        .borrow_mut()
+                        .do_event(window_id, event, win_ctx);
+                }
             }
+        } else {
+            info!("handle_cmd {} -> widget", cmd.selector);
+            let event = Event::TargetedCommand(target, cmd);
+            // TODO: self.window_id the correct source identifier here?
+            self.app_state
+                .borrow_mut()
+                .do_event(self.window_id, event, win_ctx);
         }
     }
 
@@ -545,7 +587,7 @@ impl<T: Data> DruidHandler<T> {
         let result = win_ctx.open_file_sync(options);
         if let Some(info) = result {
             let cmd = Command::new(sys_cmd::OPEN_FILE, info);
-            let event = Event::Command(cmd);
+            let event = Event::TargetedCommand(window_id.into(), cmd);
             self.app_state
                 .borrow_mut()
                 .do_event(window_id, event, win_ctx);
@@ -560,7 +602,7 @@ impl<T: Data> DruidHandler<T> {
         let result = win_ctx.save_as_sync(options);
         if let Some(info) = result {
             let cmd = Command::new(sys_cmd::SAVE_FILE, info);
-            let event = Event::Command(cmd);
+            let event = Event::TargetedCommand(window_id.into(), cmd);
             self.app_state
                 .borrow_mut()
                 .do_event(window_id, event, win_ctx);
