@@ -216,6 +216,7 @@ impl<'a, T: Data> SingleWindowState<'a, T> {
             had_active: self.window.root.has_active(),
             window: &self.state.handle,
             window_id: self.window_id,
+            widget_id: self.window.root.id(),
         };
         self.window.event(&mut ctx, &event, self.data, self.env);
 
@@ -478,6 +479,7 @@ impl<T: Data> AppState<T> {
                     window: &state.handle,
                     needs_inval: false,
                     window_id: *id,
+                    widget_id: window.root.id(),
                 };
                 window.update(&mut update_ctx, data, env);
                 if update_ctx.needs_inval || inval_windows.contains(id) {
