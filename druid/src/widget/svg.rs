@@ -28,6 +28,12 @@ use crate::{
     Point, Rect, RenderContext, Size, UpdateCtx, Widget,
 };
 
+#[cfg(feature = "images")]
+use crate::piet::{ImageFormat, InterpolationMode};
+
+#[cfg(feature = "images")]
+use image;
+
 /// A widget that renders a SVG
 pub struct Svg<T> {
     svg_data: SvgData,
@@ -189,6 +195,65 @@ impl SvgData {
                 }
                 usvg::NodeKind::Defs => {
                     // TODO: implement defs
+                }
+                #[cfg(feature = "images")]
+                usvg::NodeKind::Image(ref p) => match &p.data {
+                    usvg::ImageData::Raw(u) => {
+                        let imageformat: Option<image::ImageFormat> = match p.format {
+                            usvg::ImageFormat::PNG => Some(image::ImageFormat::PNG),
+                            usvg::ImageFormat::JPEG => Some(image::ImageFormat::JPEG),
+                            _ => None,
+                        };
+                        if let Some(imageformat) = imageformat {
+                            let vercer = u.to_vec();
+                            let dec = image::load_from_memory_with_format(&vercer[..], imageformat)
+                                .unwrap()
+                                .to_rgb();
+
+                            let sizeofpng = dec.dimensions();
+                            let correct_bytes = dec.to_vec();
+
+                            paint_ctx
+                                .with_save(|ctx| {
+                                    ctx.transform(offset_matrix);
+                                    ctx.transform(Affine::new([
+                                        p.transform.a,
+                                        p.transform.b,
+                                        p.transform.c,
+                                        p.transform.d,
+                                        p.transform.e,
+                                        p.transform.f,
+                                    ]));
+
+                                    let im = ctx
+                                        .make_image(
+                                            sizeofpng.0 as usize,
+                                            sizeofpng.1 as usize,
+                                            &correct_bytes,
+                                            ImageFormat::Rgb,
+                                        )
+                                        .unwrap();
+                                    let rec = Rect::from_origin_size(
+                                        (p.view_box.rect.x() as f64, p.view_box.rect.y() as f64),
+                                        (
+                                            p.view_box.rect.width() as f64,
+                                            p.view_box.rect.height() as f64,
+                                        ),
+                                    );
+                                    ctx.draw_image(&im, rec, InterpolationMode::NearestNeighbor);
+
+                                    Ok(())
+                                })
+                                .unwrap();
+                        }
+                    }
+                    usvg::ImageData::Path(_) => {
+                        println!("href enbeded images not yet supported");
+                    }
+                },
+                #[cfg(not(feature = "images"))]
+                usvg::NodeKind::Image(_) => {
+                    println!("enbeded images not yet supported without the images feature, eg. --features images");
                 }
                 _ => {
                     // TODO: handle more of the SVG spec.

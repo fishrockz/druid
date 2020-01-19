@@ -1,0 +1,75 @@
+<svg viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g transform="translate(54, 364)">
+<g>
+<image height="340" width="510" x="0" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAIAAAACDbGyAAAALUlEQVR4nE3HMREAMBACwUfJxwlSkIL10ITJNjeHmdnd8+CfAMmkICkp2E7qAo/mCzdbVkkfAAAAAElFTkSuQmCC" y="-340"/>
+</g>
+<g>
+<g>
+<line stroke="black" stroke-width="1" x1="0" x2="0" y1="0" y2="10"/>
+<line stroke="black" stroke-width="1" x1="102" x2="102" y1="0" y2="10"/>
+<line stroke="black" stroke-width="1" x1="204" x2="204" y1="0" y2="10"/>
+<line stroke="black" stroke-width="1" x1="306" x2="306" y1="0" y2="10"/>
+<line stroke="black" stroke-width="1" x1="408" x2="408" y1="0" y2="10"/>
+<line stroke="black" stroke-width="1" x1="510" x2="510" y1="0" y2="10"/>
+</g>
+<line stroke="black" stroke-width="1" x1="0" x2="510" y1="0" y2="0"/>
+<g>
+<text font-size="12" text-anchor="middle" x="0" y="20">
+0
+</text>
+<text font-size="12" text-anchor="middle" x="102" y="20">
+1
+</text>
+<text font-size="12" text-anchor="middle" x="204" y="20">
+2
+</text>
+<text font-size="12" text-anchor="middle" x="306" y="20">
+3
+</text>
+<text font-size="12" text-anchor="middle" x="408" y="20">
+4
+</text>
+<text font-size="12" text-anchor="middle" x="510" y="20">
+5
+</text>
+</g>
+<text font-size="12" text-anchor="middle" x="255" y="30">
+Some varying variable
+</text>
+</g>
+<g>
+<g>
+<line stroke="black" stroke-width="1" x1="0" x2="-10" y1="0" y2="0"/>
+<line stroke="black" stroke-width="1" x1="0" x2="-10" y1="-68" y2="-68"/>
+<line stroke="black" stroke-width="1" x1="0" x2="-10" y1="-136" y2="-136"/>
+<line stroke="black" stroke-width="1" x1="0" x2="-10" y1="-204" y2="-204"/>
+<line stroke="black" stroke-width="1" x1="0" x2="-10" y1="-272" y2="-272"/>
+<line stroke="black" stroke-width="1" x1="0" x2="-10" y1="-340" y2="-340"/>
+</g>
+<line stroke="black" stroke-width="1" x1="0" x2="0" y1="0" y2="-340"/>
+<g>
+<text dominant-baseline="middle" font-size="12" text-anchor="end" x="-15" y="0">
+0
+</text>
+<text dominant-baseline="middle" font-size="12" text-anchor="end" x="-15" y="-68">
+1
+</text>
+<text dominant-baseline="middle" font-size="12" text-anchor="end" x="-15" y="-136">
+2
+</text>
+<text dominant-baseline="middle" font-size="12" text-anchor="end" x="-15" y="-204">
+3
+</text>
+<text dominant-baseline="middle" font-size="12" text-anchor="end" x="-15" y="-272">
+4
+</text>
+<text dominant-baseline="middle" font-size="12" text-anchor="end" x="-15" y="-340">
+5
+</text>
+</g>
+<text font-size="12" text-anchor="middle" transform="rotate(-90 -30 -170)" x="-30" y="-182">
+The response of something
+</text>
+</g>
+</g>
+</svg>
