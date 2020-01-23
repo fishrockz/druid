@@ -22,6 +22,9 @@ mod either;
 mod env_scope;
 mod flex;
 mod identity_wrapper;
+#[cfg(feature = "images")]
+#[cfg_attr(docsrs, doc(cfg(feature = "images")))]
+mod images;
 mod label;
 mod list;
 mod padding;
@@ -48,6 +51,9 @@ pub use either::Either;
 pub use env_scope::EnvScope;
 pub use flex::{Column, Flex, Row};
 pub use identity_wrapper::IdentityWrapper;
+#[cfg(feature = "images")]
+#[cfg_attr(docsrs, doc(cfg(feature = "images")))]
+pub use images::{Image, ImageData};
 pub use label::{Label, LabelText};
 pub use list::{List, ListIter};
 pub use padding::Padding;
