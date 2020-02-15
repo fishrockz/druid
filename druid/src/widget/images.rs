@@ -170,15 +170,15 @@ impl ImageData {
         }
     }
 
-    pub fn from_data(raw_image: Vec<u8>) -> Self {
+    pub fn from_data(raw_image: &Vec<u8>) -> Result<Self, dyn Error> {
         let dec = image::load_from_memory(&raw_image[..]).unwrap().to_rgb();
 
         let sizeofimage = dec.dimensions();
-        ImageData {
+        Ok(ImageData {
             pixels: dec.to_vec(),
             x_pixels: sizeofimage.0,
             y_pixels: sizeofimage.1,
-        }
+        })
     }
 
     /// Convert ImageData into Piet draw instructions
