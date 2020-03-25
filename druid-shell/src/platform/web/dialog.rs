@@ -1,4 +1,4 @@
-// Copyright 2019 The xi-editor Authors.
+// Copyright 2020 The xi-editor Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Platform specific implementations.
+#![allow(dead_code)]
+//! File open/save dialogs, Web implementation.
 
-cfg_if::cfg_if! {
-    if #[cfg(all(target_os = "windows", not(feature = "use_gtk")))] {
-        mod windows;
-        pub use windows::*;
-    } else if #[cfg(all(target_os = "macos", not(feature = "use_gtk")))] {
-        mod mac;
-        pub use mac::*;
-    } else if #[cfg(any(feature = "use_gtk", target_os = "linux"))] {
-        mod gtk;
-        pub use self::gtk::*;
-    } else if #[cfg(target_arch = "wasm32")] {
-        mod web;
-        pub use web::*;
-    }
+/// Type of file dialog.
+pub enum FileDialogType {
+    /// File open dialog.
+    Open,
+    /// File save dialog.
+    Save,
 }
+
+#[derive(Default)]
+pub struct FileDialogOptions;
+
+impl FileDialogOptions {
+    /// Include system and hidden items.
+    pub fn set_show_hidden(&mut self) {
+        // TODO
+    }
+
+    // TODO: more options as needed
+}
+
