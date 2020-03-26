@@ -32,7 +32,7 @@ extern crate winapi;
 #[macro_use]
 extern crate objc;
 
-#[cfg(not(any(feature = "use_gtk", target_os = "linux")))]
+#[cfg(not(any(feature = "use_gtk", target_os = "linux", target_arch = "wasm32")))]
 #[macro_use]
 extern crate lazy_static;
 
